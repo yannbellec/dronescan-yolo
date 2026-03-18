@@ -107,8 +107,8 @@ Tested on: NVIDIA RTX 4090 16GB, Windows 11, CUDA 13.1
 @article{dronescan2026,
   title={DroneScan-YOLO: Efficient Real-Time Aerial Object Detection
          via Adaptive Pruning and Wasserstein-Guided Loss},
-  author={[Your Name]},
-  journal={Course Project},
+  author={[Yann Bellec]},
+  journal={SSNR},
   year={2026}
 }
 ```
