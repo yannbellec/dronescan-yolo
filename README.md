@@ -7,7 +7,7 @@
 ### 1. Clone and setup environment
 
 ```bash
-git clone https://github.com/TON_USERNAME/dronescan-yolo.git
+git clone https://github.com/yannbellec/dronescan-yolo.git
 cd dronescan-yolo
 conda create -n dronescan python=3.10 -y
 conda activate dronescan
