@@ -1,0 +1,13 @@
+# Weights 
+*.pt 
+*.pth 
+*.onnx 
+# Dataset 
+data/VisDrone/ 
+# Runs 
+runs/ 
+# Python 
+__pycache__/ 
+*.pyc 
+# Zip files 
+*.zip 
