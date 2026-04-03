@@ -1,0 +1,57 @@
+# DroneScan-YOLO architecture
+# Based on YOLOv8-p2 with native P2 detection head for tiny objects
+# Modifications over standard yolov8-p2.yaml:
+#   - Scale 's' used (same as YOLOv8s for fair comparison)
+#   - nc set to 10 for VisDrone
+#   - SAL-NWD loss integrated via init_criterion() in training script
+#   - RPA-Block applied via hooks on layers 2 and 4 (external)
+
+nc: 10  # VisDrone classes
+scales:
+  # [depth, width, max_channels]
+  n: [0.33, 0.25, 1024]
+  s: [0.33, 0.50, 1024]
+  m: [0.67, 0.75, 768]
+  l: [1.00, 1.00, 512]
+  x: [1.00, 1.25, 512]
+
+# Backbone — identical to YOLOv8s
+backbone:
+  - [-1, 1, Conv,  [64, 3, 2]]        # 0-P1/2
+  - [-1, 1, Conv,  [128, 3, 2]]       # 1-P2/4
+  - [-1, 3, C2f,   [128, True]]       # 2-P2/4  <- RPA applied here (64ch)
+  - [-1, 1, Conv,  [256, 3, 2]]       # 3-P3/8
+  - [-1, 6, C2f,   [256, True]]       # 4-P3/8  <- RPA applied here (128ch)
+  - [-1, 1, Conv,  [512, 3, 2]]       # 5-P4/16
+  - [-1, 6, C2f,   [512, True]]       # 6-P4/16
+  - [-1, 1, Conv,  [1024, 3, 2]]      # 7-P5/32
+  - [-1, 3, C2f,   [1024, True]]      # 8-P5/32
+  - [-1, 1, SPPF,  [1024, 5]]         # 9
+
+# Head — YOLOv8-p2 native with 4 detection scales
+head:
+  - [-1,      1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 6], 1, Concat,      [1]]    # cat backbone P4
+  - [-1,      3, C2f,         [512]]  # 12
+
+  - [-1,      1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 4], 1, Concat,      [1]]    # cat backbone P3
+  - [-1,      3, C2f,         [256]]  # 15 (P3/8-small)
+
+  - [-1,      1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 2], 1, Concat,      [1]]    # cat backbone P2
+  - [-1,      3, C2f,         [128]]  # 18 (P2/4-xsmall) <- tiny objects
+
+  - [-1,      1, Conv,        [128, 3, 2]]
+  - [[-1,15], 1, Concat,      [1]]    # cat head P3
+  - [-1,      3, C2f,         [256]]  # 21 (P3/8-small)
+
+  - [-1,      1, Conv,        [256, 3, 2]]
+  - [[-1,12], 1, Concat,      [1]]    # cat head P4
+  - [-1,      3, C2f,         [512]]  # 24 (P4/16-medium)
+
+  - [-1,      1, Conv,        [512, 3, 2]]
+  - [[-1, 9], 1, Concat,      [1]]    # cat head P5
+  - [-1,      3, C2f,         [1024]] # 27 (P5/32-large)
+
+  - [[18, 21, 24, 27], 1, Detect, [nc]]  # Detect(P2, P3, P4, P5)

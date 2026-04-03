@@ -1,0 +1,77 @@
+# DroneScan-YOLO v3 — Maximum Performance Architecture
+# Scale 's' hardcoded (depth=0.33, width=0.50)
+#
+# Backbone upgrades vs v2:
+#   - SPDConv replaces stride-2 Conv at P2 and P3 downsampling
+#   - SimAM after P2 and P3 C2f blocks (zero params)
+#   - SPPFWithLSKA replaces standard SPPF
+#
+# Neck upgrades vs v2:
+#   - DySample replaces all nn.Upsample (content-aware)
+#   - Native P2+P3+P4+P5 detection heads
+#
+# Loss: Focaler-Inner-NWD (in train_v3.py)
+# Pruning: RPA-Block on C2f layers (in train_v3.py)
+
+nc: 10
+depth_multiple: 0.33
+width_multiple: 0.50
+
+backbone:
+  # Standard conv for first downsampling (P1, no tiny objects yet)
+  - [-1, 1, Conv,         [64, 3, 2]]      # 0-P1/2   stride 2
+
+  # SPDConv for P2 downsampling (preserves sub-pixel info)
+  - [-1, 1, SPDConv,      [128]]           # 1-P2/4   SPD stride
+
+  # C2f feature extraction on P2 + SimAM attention
+  - [-1, 3, C2f,          [128, True]]     # 2-P2/4
+  - [-1, 1, SimAM,        []]              # 3-P2/4   zero-param attention
+
+  # SPDConv for P3 downsampling
+  - [-1, 1, SPDConv,      [256]]           # 4-P3/8   SPD stride
+
+  # C2f feature extraction on P3 + SimAM attention
+  - [-1, 6, C2f,          [256, True]]     # 5-P3/8
+  - [-1, 1, SimAM,        []]              # 6-P3/8   zero-param attention
+
+  # Standard downsampling for P4, P5 (large objects, less critical)
+  - [-1, 1, Conv,         [512, 3, 2]]     # 7-P4/16
+  - [-1, 6, C2f,          [512, True]]     # 8-P4/16
+  - [-1, 1, Conv,         [1024, 3, 2]]    # 9-P5/32
+  - [-1, 3, C2f,          [1024, True]]    # 10-P5/32
+
+  # SPPF-LSKA: long-range dependency modeling
+  - [-1, 1, SPPFWithLSKA, [1024]]          # 11
+
+head:
+  # DySample upsample P5 -> P4 (content-aware, no aliasing)
+  - [-1,       1, DySample, [512, 2]]      # 12
+  - [[-1, 8],  1, Concat,   [1]]           # 13  cat backbone P4
+  - [-1,       3, C2f,      [512]]         # 14
+
+  # DySample upsample P4 -> P3
+  - [-1,       1, DySample, [256, 2]]      # 15
+  - [[-1, 5],  1, Concat,   [1]]           # 16  cat backbone P3
+  - [-1,       3, C2f,      [256]]         # 17  P3/8-small
+
+  # DySample upsample P3 -> P2 (critical for tiny objects)
+  - [-1,       1, DySample, [128, 2]]      # 18
+  - [[-1, 2],  1, Concat,   [1]]           # 19  cat backbone P2
+  - [-1,       3, C2f,      [128]]         # 20  P2/4-xsmall TINY OBJECTS
+
+  # Downsample path for larger objects
+  - [-1,       1, Conv,     [128, 3, 2]]   # 21
+  - [[-1, 17], 1, Concat,   [1]]           # 22  cat head P3
+  - [-1,       3, C2f,      [256]]         # 23
+
+  - [-1,       1, Conv,     [256, 3, 2]]   # 24
+  - [[-1, 14], 1, Concat,   [1]]           # 25  cat head P4
+  - [-1,       3, C2f,      [512]]         # 26
+
+  - [-1,       1, Conv,     [512, 3, 2]]   # 27
+  - [[-1, 11], 1, Concat,   [1]]           # 28  cat head P5
+  - [-1,       3, C2f,      [1024]]        # 29
+
+  # 4 detection heads: P2 (tiny) + P3 (small) + P4 (medium) + P5 (large)
+  - [[20, 23, 26, 29], 1, Detect, [nc]]    # Detect

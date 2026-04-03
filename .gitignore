@@ -1,13 +1,29 @@
-# Weights 
-*.pt 
-*.pth 
-*.onnx 
-# Dataset 
-data/VisDrone/ 
-# Runs 
-runs/ 
-# Python 
-__pycache__/ 
-*.pyc 
-# Zip files 
-*.zip 
+# Weights / exports
+*.pt
+*.pth
+*.onnx
+*.engine
+
+# Dataset (too large for GitHub)
+data/VisDrone/
+
+# Ultralytics outputs
+runs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Secrets / env
+.env
+
+# Archives
+*.zip
+
+# OS / temp
+.DS_Store
+Thumbs.db
+*.cache
+*.log

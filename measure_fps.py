@@ -3,7 +3,7 @@ import torch
 import time
 from ultralytics import YOLO
 
-model = YOLO("runs/detect/baseline/weights/best.pt")
+model = YOLO("runs/detect/dronescan_full/weights/best.pt")
 dummy = torch.zeros(1, 3, 640, 640)
 
 # Warm up
